@@ -1,0 +1,71 @@
+# --- CONFIGURATION ---
+$GroupName     = "RPABots"
+$PassLength    = 16 
+$KeyVaultName   = "Shane-RPA" 
+# ---------------------
+
+# 1. Connect to Azure and Graph
+Connect-AzAccount -Identity
+Connect-MgGraph -Identity
+
+# 2. Function to generate a random password
+function New-RandomPassword {
+    $chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*"
+    return -join (1..$PassLength | ForEach-Object { $chars[(Get-Random -Maximum $chars.Length)] })
+}
+
+# 3. Get Group Members
+try {
+    $Group = Get-MgGroup -Filter "DisplayName eq '$GroupName'" -ErrorAction Stop
+    
+    $GroupMembers = Get-MgGroupMember -GroupId $Group.Id -All 
+    $Members = foreach ($Member in $GroupMembers) {
+        # Fetching Mail and UPN. We use Mail if available, otherwise UPN.
+        Get-MgUser -UserId $Member.Id -Select "UserPrincipalName,Mail,Id"
+    }
+    
+    Write-Output "Processing $($Members.Count) users found in group: ${GroupName}"
+}
+catch {
+    Write-Error "Failed to retrieve group or members: $($_.Exception.Message)"
+    return
+}
+
+# 4. Execution Block
+foreach ($Member in $Members) {
+    # Use the Mail property if populated, otherwise fall back to UPN
+    $Email = if ($Member.Mail) { $Member.Mail } else { $Member.UserPrincipalName }
+    $UserId = $Member.Id
+    
+    $NewPass = New-RandomPassword 
+    
+    # --- UPDATED SANITIZATION FOR KEY VAULT ---
+    # Key Vault secrets must match: ^[a-zA-Z0-9-]+$
+    # This replaces '@' and '.' with '-' to make the Email a valid secret name
+    $SecretName = $Email -replace '[^a-zA-Z0-9-]', '-'
+    # Remove trailing/leading dashes if any resulted from the replace
+    $SecretName = $SecretName.Trim('-')
+
+    try {
+        # A. Update Password in Entra ID
+        $PasswordProfile = @{
+            Password = $NewPass
+            ForceChangePasswordNextSignIn = $false 
+        }
+        Update-MgUser -UserId $UserId -PasswordProfile $PasswordProfile
+        Write-Output "Successfully reset password for: ${Email}"
+
+        # B. Save to Azure Key Vault
+        $SecurePass = ConvertTo-SecureString -String $NewPass -AsPlainText -Force
+        
+        # We store the original Email in a Tag so you can still search/filter easily
+        $Tags = @{ "OriginalEmail" = $Email }
+        
+        Set-AzKeyVaultSecret -VaultName $KeyVaultName -Name $SecretName -SecretValue $SecurePass -Tag $Tags
+        
+        Write-Output "Successfully vaulted secret as: ${SecretName}"
+    }
+    catch {
+        Write-Error "Failed to process ${Email}: $($_.Exception.Message)"
+    }
+}
