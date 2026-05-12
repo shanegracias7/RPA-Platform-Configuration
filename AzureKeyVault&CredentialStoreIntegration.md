@@ -62,3 +62,6 @@ When using the Read-Only plugin, secrets must be created manually in the Vault. 
 6. Click **Create** or **Save** to finalize the configuration.
 
 ---
+## Test Evidence
+<img width="1206" height="690" alt="image" src="https://github.com/user-attachments/assets/69836034-f6a0-44cf-af0d-d62f44c03afb" />
+
