@@ -1,4 +1,4 @@
-## Error Handling and Summarising using AI
+## Error Handling and Summarizing using AI
 Input
 System.IO.IOException: The process cannot access the file 'C:\Reports\MonthlyReport.xlsx' because it is being used by another process.
 
