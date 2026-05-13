@@ -65,3 +65,6 @@ When using the Read-Only plugin, secrets must be created manually in the Vault. 
 ## Test Evidence
 <img width="1206" height="690" alt="image" src="https://github.com/user-attachments/assets/69836034-f6a0-44cf-af0d-d62f44c03afb" />
 
+<img width="651" height="444" alt="image" src="https://github.com/user-attachments/assets/eb6ece93-c664-405f-a423-761f471cb96c" />
+
+
